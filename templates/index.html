@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="upload-container">
+            <h2>Upload PDF</h2>
+            <input type="file" id="pdfFile" accept=".pdf">
+            <button onclick="uploadPDF()">Upload</button>
+            <div id="status"></div>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <!-- Chat messages will appear here -->
+        </div>
+
+        <div class="input-container">
+            <input type="text" id="userInput" placeholder="Type your question here..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        function handleKeyPress(event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        }
+
+        function uploadPDF() {
+            const fileInput = document.getElementById('pdfFile');
+            const statusDiv = document.getElementById('status');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                statusDiv.textContent = 'Please select a file first.';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            statusDiv.textContent = 'Uploading...';
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    statusDiv.textContent = 'Error: ' + data.error;
+                } else {
+                    statusDiv.textContent = data.message;
+                }
+            })
+            .catch(error => {
+                statusDiv.textContent = 'Error uploading file: ' + error;
+            });
+        }
+
+        function appendMessage(message, isUser) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            messageDiv.textContent = message;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            appendMessage(message, true);
+            input.value = '';
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    appendMessage('Error: ' + data.error, false);
+                } else {
+                    appendMessage(data.response, false);
+                }
+            })
+            .catch(error => {
+                appendMessage('Error: Unable to get response', false);
+            });
+        }
+    </script>
+</body>
+</html>
